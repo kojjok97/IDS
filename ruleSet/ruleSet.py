@@ -1,7 +1,7 @@
 import os 
 import re
 
-def inspectProtocol(protocol):
+def inspectProtocol(protocol): # 입력받은 인자가 정확하게 입력되었는지 확인하는 함수
     if protocol == 'tcp':
         return
     elif protocol == 'icmp':
@@ -17,7 +17,7 @@ def inspectProtocol(protocol):
 
 
 
-def ruleOpen():
+def ruleOpen():             # rule파일을 열어 한줄씩 읽는 함수 (rule파일이 없다면 새로 만든다)
     rules = []
     
     if 'rule' not in os.listdir('./') :
@@ -34,7 +34,7 @@ def ruleOpen():
                 
 
         
-def readRule():
+def readRule():            # ruleOpen함수에서 rule파일을 읽어서 변수로 저장하는 함수
 
 
     if 'switch' in globals():
@@ -60,7 +60,7 @@ def readRule():
     
 
 
-def checkRule(port,srcIp,dstIp):
+def checkRule(port,srcIp,dstIp):    # 받은 패킷의 Port, Source IP, Destination IP가 rule에 일치하는지 확인하는 함수
         
     
     if str(port) in globals():
@@ -75,7 +75,7 @@ def checkRule(port,srcIp,dstIp):
         return False
         
         
-def checkArgument(parseArguments):
+def checkArgument(parseArguments):      # 인자에서 받은 Interface, Port, Ip를 순서대로 배열에 저장해서 반환하는 함수
     checkArray = []
     if parseArguments['protocol'] == 'any':
         
@@ -114,7 +114,7 @@ def checkArgument(parseArguments):
         
 
         
-def isIp(src_ip,dst_ip):
+def isIp(src_ip,dst_ip):        # 인자에서 받은 IP가 정확하게 IP형식으로 입력되었는지 확인하는 함수 IP형식으로 입력되지 않았다면 에러 반환 후 종료
     ipCheck = re.compile('^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])[.]){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$')
     anyCheck = re.compile('^any$')
     srcIp = ipCheck.search(src_ip)        
@@ -130,7 +130,7 @@ def isIp(src_ip,dst_ip):
             raise Exception('Try to insert right IP adress')
 
 
-def compareArguments(port_ip,packetArray):
+def compareArguments(port_ip,packetArray):  # 인자에서 받은 port,ip가 패킷의 port와 ip와 일치하는지 확인하는 함수
     
     count = 0
     
