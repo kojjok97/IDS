@@ -53,7 +53,6 @@ def readRule():            # ruleOpen함수에서 rule파일을 읽어서 변수
             globals()[rule[0]].append([rule[1],rule[2]])
                 
         else:
-            globals()[rule[0]] = []
             globals()[rule[0]].append([rule[1],rule[2]])
     
     globals()['switch'] = 1
