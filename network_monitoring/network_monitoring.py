@@ -1,8 +1,7 @@
 import socket 
 from struct import * 
-import logging 
 import binascii
-from rule_set import rule_set
+from rule_set import monitoring_rule_set
 from log import log
 import sys
 import threading 
@@ -33,72 +32,16 @@ def tlanslation_flag(flagbit): # 16진수로 되어있는 flags를 계산하여 
     
 class Monitor: # IDS와 PacketMonitoring의 클래스
 
-    def __init__(self,mode):
+    def __init__(self,file_path):
         self.s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW,socket.htons(0x0800)) # TCP,UDP,ICMP를 받는 소켓 
         self.arps = socket.socket(socket.AF_PACKET, socket.SOCK_RAW,socket.htons(0x0806)) # ARP를 받는 소켓 
-        self.logger = log.Log(mode)
+        self.logger = log.Log(file_path)
         self.count = 1
         self._lock = threading.Lock()
 
 
-    def ids(self):
-        
-        rule_set.read_rule() # IDS동작 전 Rule set을 읽어 변수에 담는다
-        
-        while(1):
-            
-
-            data = self.s.recvfrom(65565) 
-
-            data = data[0] 
-  
-            ip_header = data[14:34]
-            ip_header = unpack("!BBHHHBBH4s4s", ip_header) #  IP Header구조에 맞춰 리스트로 필드 반환
-
-            src_ip_addr = socket.inet_ntoa(ip_header[8])   # 출발지 IP 주소 
-            dst_ip_addr = socket.inet_ntoa(ip_header[9])   # 도착지 IP 주소
-            protocol = ip_header[6]                        # protocol 필드 상위 계층의 프로토콜을 구분할 수 있다. TCP : 6, UDP : 17, ICMP : 2
-            
-            
-            if protocol == TCP:                                # TCP 패킷     
-                tcp_header = data[34:54]                        
-                tcp_header = unpack("!HHLLBBHHH",tcp_header)   # TCP Header구조에 맞춰 리스트로 필드 반환 
-                src_port = tcp_header[0]                       # 출발지 포트 번호 
-                dst_port = tcp_header[1]                       # 목적지 포트 번호
-                sequence_number = tcp_header[2]                # Sequence Number 
-                acknowledgement_number = tcp_header[3]         # Acknowledgement Number 
-
-                flags = tlanslation_flag(tcp_header[5])         # Flags
-                window = tcp_header[6]                         # Window
-                
-                warn = rule_set.check_rule(dst_port,src_ip_addr,dst_ip_addr)  # Rule set에 탐지되는지를 판별하여 룰셋과 일치하면 True 일치하지 않으면 Flase 반환
-                
-                if warn == True:
-                    self.logger.ids_warn_logging_tcp([src_ip_addr,dst_ip_addr,src_port,dst_port,
-                    sequence_number,acknowledgement_number,flags,window,sys.getsizeof(data)],"TCP")      # 탐지된 패킷을 로그로 남기는 함수 
-                else:
-                    self.logger.ids_info_logging_tcp([src_ip_addr,dst_ip_addr,src_port,dst_port,
-                    sequence_number,acknowledgement_number,flags,window,sys.getsizeof(data)],"TCP")      # 탐지되지 않은 패킷을 로그로 남기는 함수
-
-            elif protocol == UDP:                              # UDP 패킷 
-                udp_header = data[34:42]                       
-                udp_header = unpack('!HHHH',udp_header)        # TCP Header구조에 맞춰 리스트로 필드 반환 
-                src_port = udp_header[0]                       # 출발지 포트 번호 
-                dst_port = udp_header[1]                       # 목적지 포트 번호
-
-                warn = rule_set.check_rule(dst_port,src_ip_addr,dst_ip_addr)
-
-                if warn == True:
-                    self.logger.ids_warn_logging_udp([src_ip_addr,dst_ip_addr,src_port,dst_port,sys.getsizeof(data)],"UDP")      # 탐지된 패킷을 로그로 남기는 함수 
-                else:
-                    self.logger.ids_info_logging_udp([src_ip_addr,dst_ip_addr,src_port,dst_port,sys.getsizeof(data)],"UDP")      # 탐지되지 않은 패킷을 로그로 남기는 함수
-
-
-
-
-
     def arp_monitoring(self,args):       #ARP패킷을 모니터링하는 함수
-        port_Ip = rule_set.check_argument(args)  # 받은 인자중 Interface, IP, Port만 확인하여 반환하는 함수
+        port_Ip = monitoring_rule_set.check_argument(args)  # 받은 인자중 Interface, IP, Port만 확인하여 반환하는 함수
         while(1):
             
 
@@ -120,7 +63,7 @@ class Monitor: # IDS와 PacketMonitoring의 클래스
             dst_MAC_addr = (binascii.hexlify(arp_header[7])).decode()       # Target Hardware Address 
             dst_ip_addr = socket.inet_ntoa(arp_header[8])                   # Target IP Addres 
             packet_array = [interface,0,0,src_ip_addr,dst_ip_addr]            
-            filtering = rule_set.compare_arguments(port_Ip,packet_array)       # Interface, Source IP, Destination IP검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환 
+            filtering = monitoring_rule_set.compare_arguments(port_Ip,packet_array)       # Interface, Source IP, Destination IP검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환 
             
             if filtering == True:
 
@@ -135,8 +78,8 @@ class Monitor: # IDS와 PacketMonitoring의 클래스
 
 
     def packet_filtering(self,args):
-        port_Ip = rule_set.check_argument(args)        # 받은 인자중 Interface, IP, Port만 확인하여 반환하는 함수
-        rule_set.inspect_protocol(args['protocol'])    # protocol 인자가 ARP,ICMP,TCP,UDP중 제대로 입력되었는지 확인하는 함수
+        port_Ip = monitoring_rule_set.check_argument(args)        # 받은 인자중 Interface, IP, Port만 확인하여 반환하는 함수
+        monitoring_rule_set.inspect_protocol(args['protocol'])    # protocol 인자가 ARP,ICMP,TCP,UDP중 제대로 입력되었는지 확인하는 함수
         
 
         
@@ -183,7 +126,7 @@ class Monitor: # IDS와 PacketMonitoring의 클래스
                 flags = tlanslation_flag(tcp_header[5])                       # Flags 
                 window = tcp_header[6]                                       # Window
                 packet_array = [interface,src_port,dst_port,src_ip_addr,dst_ip_addr] 
-                filtering = rule_set.compare_arguments(port_Ip,packet_array)    # Interface, Source Port, Destination Port Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환 
+                filtering = monitoring_rule_set.compare_arguments(port_Ip,packet_array)    # Interface, Source Port, Destination Port Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환 
                 
                 if filtering == True:
                     
@@ -204,7 +147,7 @@ class Monitor: # IDS와 PacketMonitoring의 클래스
                 dst_port = udp_header[1]                                  # Destination Port
                 
                 packet_array = [interface,src_ip_addr,dst_ip_addr,src_port,dst_port]
-                filtering = rule_set.compare_arguments(port_Ip,packet_array)   # Interface, Source Port, Destination Port Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환
+                filtering = monitoring_rule_set.compare_arguments(port_Ip,packet_array)   # Interface, Source Port, Destination Port Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환
                 if filtering == True:
 
                     self.logger.udp_monitoring_log([src_ip_addr,dst_ip_addr,src_port,dst_port,sys.getsizeof(data)],
@@ -226,7 +169,7 @@ class Monitor: # IDS와 PacketMonitoring의 클래스
                 rest_of_the_header = icmp_header[3]                      # Rest of the header
                 data_section = icmp_header[4]                            # Data section
                 packet_array = [interface,0,0,src_ip_addr,dst_ip_addr]
-                filtering = rule_set.compare_arguments(port_Ip,packet_array)   # Interface,  Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환
+                filtering = monitoring_rule_set.compare_arguments(port_Ip,packet_array)   # Interface,  Source IP, Destination IP 검사후 받은 인자와 일치하면 True 반환 일치하지 않으면 False 반환
                 if filtering == True:
 
                     self.logger.icmp_monitoring_log([src_MAC_addr,dst_MAC_addr,src_ip_addr,dst_ip_addr,icmp_type,

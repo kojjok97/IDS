@@ -1,5 +1,5 @@
 import argparse
-from network_monitoring import network_monitoring
+from network_monitoring import network_monitoring, ids
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -30,14 +30,14 @@ def main():
 
 
     if args == False:
-        ids = network_monitoring.Monitor('ids')  # IDS모드 동작 
-        ids.ids()
+        network_ids = ids.Ids('ids')   # IDS모드 동작 
+        network_ids.ids()
     else:
-        mon = network_monitoring.Monitor(args['file_path'])  # PacketMonitoring모드로 동작 
+        monitoring = network_monitoring.Monitor(args['file_path'])  # PacketMonitoring모드로 동작 
 
         with ThreadPoolExecutor(max_workers=2) as ex:
-            ex.submit(mon.packet_filtering,args)             # TCP,UDP,ICMP 모니터링 스레드
-            ex.submit(mon.arp_monitoring,args)               # ARP 모니터링 스레드
+            ex.submit(monitoring.packet_filtering,args)             # TCP,UDP,ICMP 모니터링 스레드
+            ex.submit(monitoring.arp_monitoring,args)               # ARP 모니터링 스레드
         
 
     
